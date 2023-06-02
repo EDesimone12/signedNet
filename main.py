@@ -25,12 +25,12 @@ def count_degree(edges_labeled):
     return v_dict,n_dict
 
 
-def get_Neighbours_ofID(edges_labeled,v_dict,nodeID):
+def get_Neighbours_ofID(edges_labeled,v_dict,nodeID, sign_value):
     #this function provides a list of all the nodes that have an edgeOut in nodeID
     neighbours = []
 
     for e in edges_labeled:
-        if(e[1] == nodeID and e[2] == 1 and e[0] in v_dict):
+        if(e[1] == nodeID and e[2] == sign_value and e[0] in v_dict):
             neighbours.append(e[0])
 
     return neighbours
@@ -90,7 +90,7 @@ def second_algorithm(edges_labeled,k):
         seed_set.add(max_ID) # Add the new v in the seed set
         del v_dict[max_ID] # Removing this v from the dict
 
-        max_ID_neighbours = get_Neighbours_ofID(edges_labeled,v_dict,max_ID)
+        max_ID_neighbours = get_Neighbours_ofID(edges_labeled,v_dict,max_ID,1)
 
         for w in max_ID_neighbours: #we have to reduce the degree of the neighbour of max_ID
                 v_dict[w] = v_dict[w] - 1
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     #Labeling
     edges_labeled = labeling(graph)
 
-    seed_set = first_algorithm(edges_labeled,k)
+    seed_set = second_algorithm(edges_labeled,k)
     print(seed_set)
 
 
