@@ -1,3 +1,5 @@
+import argparse
+
 import snap
 import networkx as nx
 import random
@@ -120,8 +122,14 @@ def printGr(filename):
 if __name__ == '__main__':
     filename = "datasets/twitter_combined.txt"
 
-    k = 30
-    t = 2
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-k', dest='k', action='store',
+                        default='', type=int, help='k size of seed-set')
+    parser.add_argument('-t', dest='t', action='store',
+                        default='', type=int, help='treshold of nodes')
+    args = parser.parse_args()
+
 
     # Load the Graph from Edge List file
     graph = snap.LoadEdgeList(snap.TNGraph,filename , 0, 1)
@@ -129,7 +137,7 @@ if __name__ == '__main__':
     #Labeling
     edges_labeled = labeling(graph)
 
-    seed_set = second_algorithm(edges_labeled,k)
+    seed_set = second_algorithm(edges_labeled,args.k)
     print(seed_set)
 
 
