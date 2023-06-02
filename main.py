@@ -14,12 +14,12 @@ def count_degree(edges_labeled):
 
     for e in edges_labeled: #(u,v,peso)
         if e[2] == 1:
-            if(e[0] in v_dict):
+            if e[0] in v_dict:
                 v_dict[e[0]] = v_dict[e[0]] + 1 #d^+ degree of a node
             else:
                 v_dict[e[0]] = 1
         if e[2] == -1:
-            if(e[0] in n_dict):
+            if e[0] in n_dict:
                 n_dict[e[0]] = n_dict[e[0]] + 1 #d^+ degree of a node
             else:
                 n_dict[e[0]] = 1
@@ -37,6 +37,18 @@ def get_Neighbours_ofID(edges_labeled,v_dict,nodeID, sign_value):
 
     return neighbours
 
+def compact_dict(v_dict,n_dict):
+    #[[u,d+,d-]...]  <---> dict[key:u] = (d+,d-)
+    comp_dict = {}
+    for v in v_dict.keys():
+        comp_dict[v] = (v,v_dict[v],0)
+    for v in n_dict.keys():
+        if v in comp_dict:
+            tupla = comp_dict[v]
+            comp_dict[v] = (v,tupla[0],n_dict[v])
+        else:
+            comp_dict[v] = (v, 0 ,n_dict[v])
+    return comp_dict
 
 def labeling(graph):
     min_probability = 0  # Valore minimo di probabilità
@@ -104,17 +116,15 @@ def third_algorithm(edges_labeled,k,t):
 
     #v_dict = + DEGREE   - n_dict = - DEGREE
     v_dict, n_dict = count_degree(edges_labeled)
+    comp_dict = compact_dict(v_dict,n_dict)
+
     diff = 0
     while len(seed_set) < k:
         difference_dict = {}
-        for e in edges_labeled:
-            if e[0] not in v_dict:
-                time.sleep(1)
-                break
-            elif e[0] not in n_dict:
-                diff = v_dict[e[0]]
-            else:
-                diff = v_dict[e[0]] - n_dict[e[0]]
+        for e in edges_labeled: #e(u,v,peso)   comp[key:u] = (d+,d-)
+            if e[0] not in comp_dict: break
+            tupla = comp_dict[e[0]]
+            diff = tupla[0] - tupla[1]
 
             if diff >= 0:
                 tot = diff / t
@@ -125,19 +135,21 @@ def third_algorithm(edges_labeled,k,t):
 
         max_ID = max(difference_dict, key=difference_dict.get)
         seed_set.add(max_ID) # Add the new v in the seed set
-        del v_dict[max_ID]
-        if max_ID in n_dict: del n_dict[max_ID]
+        del comp_dict[max_ID]
 
-        max_ID_plus_neighbours = get_Neighbours_ofID(edges_labeled,v_dict,max_ID,1)
-        max_ID_neg_neighbours = get_Neighbours_ofID(edges_labeled,n_dict,max_ID,-1)
+        for e in edges_labeled:
 
+            if e[0] not in comp_dict: break
+            tupla = comp_dict[e[0]]
+
+            if e[1] == max_ID:
+                if e[2] == 1:
+                    comp_dict[e[0]] = (tupla[0] - 1,tupla[1])
+                else:
+                    comp_dict[e[0]] = (tupla[0] , tupla[1] - 1)
         #w vicini di maxID che hanno archi positivi verso maxID
         #z vicini di maxID he hanno archi negativi verso maxID
         # we have to reduce the degree of the neighbour of max_ID
-        for w in max_ID_plus_neighbours:
-            v_dict[w] = v_dict[w] - 1
-        for z in max_ID_neg_neighbours:
-            n_dict[z] = n_dict[z] - 1
 
     return seed_set
 
