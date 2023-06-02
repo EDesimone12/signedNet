@@ -99,11 +99,47 @@ def second_algorithm(edges_labeled,k):
 
     return seed_set
 
-def third_algorithm(edges_labeled,k):
+def third_algorithm(edges_labeled,k,t):
     seed_set = set()
 
     #v_dict = + DEGREE   - n_dict = - DEGREE
     v_dict, n_dict = count_degree(edges_labeled)
+    diff = 0
+    while len(seed_set) < k:
+        difference_dict = {}
+        for e in edges_labeled:
+            if e[0] not in v_dict:
+                time.sleep(1)
+                break
+            elif e[0] not in n_dict:
+                diff = v_dict[e[0]]
+            else:
+                diff = v_dict[e[0]] - n_dict[e[0]]
+
+            if diff >= 0:
+                tot = diff / t
+                difference_dict[e[0]] = tot
+
+        if len(difference_dict) == 0:
+            return "ERROR DIFF EMPTY"
+
+        max_ID = max(difference_dict, key=difference_dict.get)
+        seed_set.add(max_ID) # Add the new v in the seed set
+        del v_dict[max_ID]
+        if max_ID in n_dict: del n_dict[max_ID]
+
+        max_ID_plus_neighbours = get_Neighbours_ofID(edges_labeled,v_dict,max_ID,1)
+        max_ID_neg_neighbours = get_Neighbours_ofID(edges_labeled,n_dict,max_ID,-1)
+
+        #w vicini di maxID che hanno archi positivi verso maxID
+        #z vicini di maxID he hanno archi negativi verso maxID
+        # we have to reduce the degree of the neighbour of max_ID
+        for w in max_ID_plus_neighbours:
+            v_dict[w] = v_dict[w] - 1
+        for z in max_ID_neg_neighbours:
+            n_dict[z] = n_dict[z] - 1
+
+    return seed_set
 
 def printGr(filename):
     G = nx.Graph()
@@ -120,7 +156,7 @@ def printGr(filename):
     plt.show()
 
 if __name__ == '__main__':
-    filename = "datasets/twitter_combined.txt"
+    filename = "datasets/facebook_combined.txt"
 
     parser = argparse.ArgumentParser()
 
@@ -134,12 +170,35 @@ if __name__ == '__main__':
     # Load the Graph from Edge List file
     graph = snap.LoadEdgeList(snap.TNGraph,filename , 0, 1)
 
+    '''
+    random.seed(42)
+    graph = snap.TNGraph.New()
+    for i in range(1, 110):
+        graph.AddNode(i)
+
+    for u in graph.Nodes():
+        for v in graph.Nodes():
+            if u.GetId() != v.GetId():
+                # Genera un valore casuale tra 0 e 1
+                random_value = random.random()
+                if random_value <= 0.5:
+                    graph.AddEdge(u.GetId(), v.GetId())
+    print("Numero di nodi:", graph.GetNodes())
+    print("Numero di archi:", graph.GetEdges())
+    '''
+    
+    #for edge in graph.Edges():
+     #   print(edge.GetSrcNId(), "->", edge.GetDstNId())
+    #for node in graph.Nodes():
+     #   print(node.GetId())
+
+
+
     #Labeling
     edges_labeled = labeling(graph)
 
-    seed_set = second_algorithm(edges_labeled,args.k)
+    seed_set = third_algorithm(edges_labeled,args.k,args.t)
     print(seed_set)
-
 
 
 
