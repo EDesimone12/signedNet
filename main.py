@@ -7,15 +7,22 @@ import time
 
 
 def count_degree(edges_labeled):
-    v_dict = {} #defining a dictionary of key:nodeID and value: outDegree
+    v_dict = {} #defining a dictionary of key:nodeID and value: outDegree  d^+
+    n_dict = {} #same usage, d^-
 
     for e in edges_labeled: #(u,v,peso)
         if e[2] == 1:
             if(e[0] in v_dict):
-                v_dict[e[0]] = v_dict[e[0]] + 1
+                v_dict[e[0]] = v_dict[e[0]] + 1 #d^+ degree of a node
             else:
                 v_dict[e[0]] = 1
-    return v_dict
+        if e[2] == -1:
+            if(e[0] in n_dict):
+                n_dict[e[0]] = n_dict[e[0]] + 1 #d^+ degree of a node
+            else:
+                n_dict[e[0]] = 1
+
+    return v_dict,n_dict
 
 
 def get_Neighbours_ofID(edges_labeled,v_dict,nodeID):
@@ -59,7 +66,7 @@ def first_algorithm(edges_labeled,k):
     #first algorithm - Seeds Greedy Degree max
     seed_set = set()
 
-    v_dict = count_degree(edges_labeled)
+    v_dict, _ = count_degree(edges_labeled)
 
     while len(seed_set) < k:
         max_key = max(v_dict, key=v_dict.get)
@@ -75,7 +82,7 @@ def second_algorithm(edges_labeled,k):
 
     seed_set = set()
 
-    v_dict = count_degree(edges_labeled)
+    v_dict, _ = count_degree(edges_labeled)
     # u nel seedset, se w->u allora il grado di u deve essere diminuito
 
     while len(seed_set) < k:
@@ -89,6 +96,12 @@ def second_algorithm(edges_labeled,k):
                 v_dict[w] = v_dict[w] - 1
 
     return seed_set
+
+def third_algorithm(edges_labeled,k):
+    seed_set = set()
+
+    #v_dict = + DEGREE   - n_dict = - DEGREE
+    v_dict, n_dict = count_degree(edges_labeled)
 
 def printGr(filename):
     G = nx.Graph()
@@ -108,6 +121,7 @@ if __name__ == '__main__':
     filename = "datasets/twitter_combined.txt"
 
     k = 30
+    t = 2
 
     # Load the Graph from Edge List file
     graph = snap.LoadEdgeList(snap.TNGraph,filename , 0, 1)
