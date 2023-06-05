@@ -5,6 +5,7 @@ import networkx as nx
 import random
 import matplotlib.pyplot as plt
 import time
+import copy
 from collections import Counter
 
 
@@ -75,7 +76,7 @@ def labeling(graph):
 
     return edges
 
-def labeling_graph(graph):
+def labeling_graph(graph, t):
     min_probability = 0  # Valore minimo di probabilità
     max_probability = 1  # Valore massimo di probabilità
 
@@ -105,6 +106,10 @@ def labeling_graph(graph):
 
     return graph
 
+def set_t(graph,t):
+
+    for node in graph.Nodes():
+        graph.AddIntAttrDatN(node,t,"t")
 
 
 def first_algorithm(edges_labeled,k):
@@ -240,6 +245,90 @@ def third_algorithm(graph, k, t):
 
     return seed_set
 
+
+
+
+def TSS_algorithm(graph,k):
+    vertices = set([node.GetId() for node in graph.Nodes()])
+
+    seed_set = set()
+
+    while len(seed_set) < k:
+        v_with_t_zero = None
+        for v in vertices:
+            if graph.GetIntAttrDatN(graph.GetNI(v), 't') == 0:
+                v_with_t_zero = v
+                break
+
+        if v_with_t_zero is not None:  #N(v)   v_with_t_zero --> u
+            for edge in graph.Edges():
+                u = edge.GetDstNId()
+                if u == graph.GetNI(v_with_t_zero):
+                    graph.DelEdge(u, v_with_t_zero)
+                    graph.AddIntAttrDatN(u, graph.GetIntAttrDatN(u, 't') - 1, 't')
+            vertices.remove(v_with_t_zero)
+        else:
+            v_with_d_less_t = None
+            for v in vertices:
+                if graph.GetNI(v).GetDeg() < graph.GetIntAttrDatN(v, 't'):
+                    v_with_d_less_t = v
+                    break
+
+            if v_with_d_less_t is not None:
+                seed_set.add(v_with_d_less_t)
+
+                for edge in graph.Edges():
+                    u = edge.GetDstNId()
+                    if u == graph.GetNI(v_with_d_less_t):
+                        graph.DelEdge(u, v_with_d_less_t)
+                        graph.AddIntAttrDatN(u, graph.GetIntAttrDatN(u, 't') - 1, 't')
+                vertices.remove(v_with_d_less_t)
+            else:
+                max_u = None
+                max_value = -1
+
+                for v in vertices:
+                    d = graph.GetNI(v).GetDeg()
+                    value = graph.GetIntAttrDatN(v, 't')/( d * (d + 1) )
+                    if value > max_value:
+                        max_value = value
+                        max_u = v
+
+                for edge in graph.Edges():
+                    u = edge.GetDstNId()
+                    if u == graph.GetNI(v_with_d_less_t):
+                        graph.DelEdge(u, max_u)
+                vertices.remove(max_u)
+
+    return seed_set
+
+def cascade(graph,seed_set):
+
+    prev_influenced = set()
+    influencing = copy.deepcopy(seed_set)
+
+    while len(influencing) != len(prev_influenced):
+        nodes_plus = 0
+        nodes_minus = 0
+        prev_influenced = copy.deepcopy(influencing)
+        for node in graph.Nodes():
+            if node.GetId() not in prev_influenced:
+                for edge in graph.Edges():
+                    u = edge.GetSrcNId()
+                    v = edge.GetDstNId()
+                    if u == node.GetId() and v in prev_influenced:
+                        if graph.GetIntAttrDatN(graph.GetNI(u), "weight") == 1:
+                            nodes_plus += 1
+                        else:
+                            nodes_minus += 1
+                if (nodes_plus - nodes_minus) >= graph.GetIntAttrDatN(node,"t"):
+                    influencing.add(node.GetId())
+    return influencing
+
+
+
+
+
 def printGr(filename):
     G = nx.Graph()
 
@@ -292,7 +381,20 @@ if __name__ == '__main__':
      #   print(node.GetId())
 
     #Labeling
-    labeling_graph(graph)
+    labeling_graph(graph,args.t)
+    set_t(graph,args.t)
 
-    seed_set = third_algorithm(graph,args.k,args.t)
+
+    file_path = "graph.bin"
+    FOut = snap.TFOut(file_path)
+    graph.Save(FOut)
+    FOut.Flush()
+    FIn = snap.TFIn(file_path)
+    loaded_graph = snap.TNEANet.Load(FIn)
+
+
+    seed_set = TSS_algorithm(loaded_graph,args.k)
     print(seed_set)
+
+    #influenced = cascade(graph, seed_set)
+    #print(influenced)
