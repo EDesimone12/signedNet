@@ -4,8 +4,8 @@ import snap
 import networkx as nx
 import random
 import matplotlib.pyplot as plt
-import scipy as sp
 import time
+from collections import Counter
 
 
 def count_degree(edges_labeled):
@@ -75,6 +75,37 @@ def labeling(graph):
 
     return edges
 
+def labeling_graph(graph):
+    min_probability = 0  # Valore minimo di probabilità
+    max_probability = 1  # Valore massimo di probabilità
+
+    random.seed(time.time())
+
+    edges = []
+    for edge in graph.Edges():
+        u = edge.GetSrcNId()
+        v = edge.GetDstNId()
+
+        #Ciclo da eliminare
+        if u == v:
+            graph.DelEdge(u, v)
+            break
+
+        max_degree = max(graph.GetNI(u).GetDeg(), graph.GetNI(v).GetDeg())
+
+        probability = 1 / (max_degree + 1)
+        normalized_probability = (probability - min_probability) / (max_probability - min_probability)
+
+        random_value = random.uniform(0,1)
+        #print("u",u,"v",v,"RAND",random_value,"NORM_P",normalized_probability)
+        if random_value <= normalized_probability:
+            graph.AddIntAttrDatE(edge, -1, "weight")
+        else:
+            graph.AddIntAttrDatE(edge, 1, "weight")
+
+    return graph
+
+
 
 def first_algorithm(edges_labeled,k):
     #first algorithm - Seeds Greedy Degree max
@@ -111,6 +142,7 @@ def second_algorithm(edges_labeled,k):
 
     return seed_set
 
+'''
 def third_algorithm(edges_labeled,k,t):
     seed_set = set()
 
@@ -152,6 +184,61 @@ def third_algorithm(edges_labeled,k,t):
         # we have to reduce the degree of the neighbour of max_ID
 
     return seed_set
+'''
+
+
+def third_algorithm(graph, k, t):
+    seed_set = set()
+    # Inizializza il Counter per il conteggio degli archi positivi e negativi
+    counter = Counter()
+
+    for edge in graph.Edges():
+        src_node_id = edge.GetSrcNId()
+        weight = graph.GetIntAttrDatE(edge, "weight")
+
+        if weight > 0:
+            # Verifica se il nodo di origine è già presente nel contatore
+            if src_node_id in counter:
+                # Incrementa il valore 'positive' del contatore del nodo di origine
+                counter[src_node_id]['positive'] += 1
+            else:
+                # Se il nodo di origine non è presente, crea una nuova voce nel contatore
+                counter[src_node_id] = {'positive': 1, 'negative': 0}
+        elif weight < 0:
+            # Verifica se il nodo di origine è già presente nel contatore
+            if src_node_id in counter:
+                # Incrementa il valore 'positive' del contatore del nodo di origine
+                counter[src_node_id]['negative'] += 1
+            else:
+                # Se il nodo di origine non è presente, crea una nuova voce nel contatore
+                counter[src_node_id] = {'positive': 0, 'negative': 1}
+
+
+    while len(seed_set) < k:
+        # Calcola il massimo valore (grado positivo - grado negativo) / t nel Counter se il grado positivo è maggiore del grado negativo
+        max_node_id = max(
+            (x for x, v in counter.items() if v['positive'] > v['negative']),
+            key=lambda x: (counter[x]['positive'] - counter[x]['negative']) / t)
+        # Rimuovi l'elemento dal Counter
+        counter.pop(max_node_id)
+        seed_set.add(max_node_id)
+
+        # Recupera tutti i nodi con max_node_id come vicino
+        neighbours = [node.GetId() for node in graph.Nodes() if graph.IsEdge(node.GetId(), max_node_id)]
+
+        # Rimuovi archi positivi o negativi dai vicini
+        for neighbour in neighbours:
+            edge = graph.GetEI(neighbour, max_node_id)
+            weight = graph.GetIntAttrDatE(edge, "weight")
+
+            # Controllo se l'arco è positivo o negativo
+            if weight > 0:
+                counter[neighbour]['positive'] -= 1
+            else:
+                counter[neighbour]['negative'] -= 1
+        graph.DelNode(max_node_id)  # Rimuovi il nodo dal grafo
+
+    return seed_set
 
 def printGr(filename):
     G = nx.Graph()
@@ -168,7 +255,7 @@ def printGr(filename):
     plt.show()
 
 if __name__ == '__main__':
-    filename = "datasets/facebook_combined.txt"
+    filename = "datasets/twitter_combined.txt"
 
     parser = argparse.ArgumentParser()
 
@@ -180,12 +267,12 @@ if __name__ == '__main__':
 
 
     # Load the Graph from Edge List file
-    graph = snap.LoadEdgeList(snap.TNGraph,filename , 0, 1)
+    graph = snap.LoadEdgeList(snap.TNEANet,filename , 0, 1)
 
     '''
     random.seed(42)
-    graph = snap.TNGraph.New()
-    for i in range(1, 110):
+    graph = snap.TNEANet.New()
+    for i in range(1, 11):
         graph.AddNode(i)
 
     for u in graph.Nodes():
@@ -204,17 +291,8 @@ if __name__ == '__main__':
     #for node in graph.Nodes():
      #   print(node.GetId())
 
-
-
     #Labeling
-    edges_labeled = labeling(graph)
+    labeling_graph(graph)
 
-    seed_set = third_algorithm(edges_labeled,args.k,args.t)
+    seed_set = third_algorithm(graph,args.k,args.t)
     print(seed_set)
-
-
-
-
-
-
-
