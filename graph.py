@@ -59,6 +59,7 @@ def set_degree_node(graph):
     for node in graph.Nodes():
         graph.AddIntAttrDatN(node, 0, "degree_pos")
         graph.AddIntAttrDatN(node, 0, "degree_neg")
+        graph.AddIntAttrDatN(node, 0, 'degree_tot')
     
     for edge in graph.Edges():
         src_id = edge.GetSrcNId()
@@ -66,6 +67,10 @@ def set_degree_node(graph):
         
         src_node = graph.GetNI(src_id)
         dst_node = graph.GetNI(dst_id)
+        
+        #Setto il grado generale dei nodi
+        graph.AddIntAttrDatN(src_node, graph.GetIntAttrDatN(src_node, 'degree_tot') + 1, 'degree_tot')
+        graph.AddIntAttrDatN(dst_node, graph.GetIntAttrDatN(src_node, 'degree_tot') + 1, 'degree_tot')
         
         #Sia della sorgente che della destinazione, perché siamo su un grafo orientato
         if(graph.GetIntAttrDatE(edge, "weight") == 1):
@@ -138,7 +143,86 @@ def third_algorithm(graph, k):
                 graph.AddIntAttrDatN(neighbor_id, graph.GetIntAttrDatN(neighbor_id, 'degree_neg') - 1, 'degree_neg')
     
     return seed_set
+
+def sup_TSS(graph, dict_neighbor, node_id, flag_t = True):
+    neighbors = get_neighbors(graph, node_id) #Recupero i vicini di node_t_with_zero
             
+    #Per ogni vicino decremento la t e il grado
+    for neighbor in neighbors:
+        
+        if flag_t:
+            graph.AddIntAttrDatN(
+                neighbor, 
+                graph.GetIntAttrDatN(neighbor, 't') - 1, 
+                't')
+        
+        graph.AddIntAttrDatN(
+            neighbor, 
+            graph.GetIntAttrDatN(node_id, 'degree_tot') - 1, 
+            'degree_tot')
+        
+        #Elimino v dai vicini di u
+        new_neighbors = set(dict_neighbor[neighbor])
+        new_neighbors.discard(node_id)
+        dict_neighbor[neighbor] = new_neighbors
+    
+def TSS(graph, k): 
+    seed_set = set()
+    dict_neighbor = {}
+    counter = Counter()
+    v = None
+    
+    for node in graph.Nodes():
+        neighbors = get_neighbors(graph, node.GetId())            
+        dict_neighbor[node.GetId()] = copy.deepcopy(neighbors)
+    
+    while len(seed_set) < k:
+        node_t_with_zero = None
+        node_t_degree_min_t = None
+        
+        #Trovo nodo con t == 0
+        for node in graph.Nodes():
+            node_id = node.GetId()
+            if graph.GetIntAttrDatN(node_id, 't') == 0:
+                node_t_with_zero = node_id
+                break
+            
+        #Trovo nodo con d < t
+        for node in graph.Nodes():
+            node_id = node.GetId()
+            if graph.GetIntAttrDatN(node_id, 'degree_tot') < graph.GetIntAttrDatN(node_id, 't'):
+                node_t_degree_min_t = node_id
+                break
+        
+        #Se esiste un nodo con t = 0
+        if node_t_with_zero is not None:
+            sup_TSS(graph, dict_neighbor, node_t_with_zero)
+            v =  node_t_with_zero           
+        else:
+            if node_t_degree_min_t is not None:
+                seed_set.add(node_t_degree_min_t)
+                sup_TSS(graph, dict_neighbor, node_t_degree_min_t)
+                
+                v = node_t_degree_min_t
+            else:
+                for node in graph.Nodes():
+                    node_id = node.GetId()
+                    degree = graph.GetIntAttrDatN(node_id, 'degree_tot')
+                    t = graph.GetIntAttrDatN(node_id, 't')
+                    
+                    counter[node_id] = t / degree * (degree + 1)
+                
+                max_node_id = max(counter, key=counter.get) # Ottieni la chiave con il valore massimo
+                counter.clear() # Svuoto il Counter
+                v = max_node_id
+                
+                sup_TSS(graph, dict_neighbor, max_node_id, False)
+                
+        graph.DelNode(v)
+        del dict_neighbor[v]
+    
+    return seed_set
+                 
 def cascade(graph, seed_set): 
     prev_influenced = set()
     influencing = copy.deepcopy(seed_set)
@@ -166,7 +250,6 @@ def cascade(graph, seed_set):
                 influencing.add(node_id)
                 
     return influencing
-
 if __name__ == '__main__':
     filename = "datasets/facebook_combined.txt"
 
@@ -195,11 +278,30 @@ if __name__ == '__main__':
     FOut.Flush()
     FIn = snap.TFIn(file_path)
     loaded_graph = snap.TNEANet.Load(FIn)
+    
+    G = snap.ConvertGraph(snap.PUNGraph, graph)
 
-    seed_set = third_algorithm(graph, args.k)
+    # Esegui l'algoritmo di community detection
+    CmtyV = snap.TCnComV()
+    modularity = snap.CommunityGirvanNewman(G, CmtyV)
+
+    # Stampa le informazioni sulle community
+    print("Numero di community individuate:", len(CmtyV))
+    print("Modularità:", modularity)
+
+    # Stampa i nodi appartenenti a ciascuna community
+    for i, Cmty in enumerate(CmtyV):
+        print("Community", i + 1, ":", )
+        for NI in Cmty:
+            print(NI, end=" ")
+        print()
+
+    #seed_set = third_algorithm(graph, args.k)
+    #seed_set = TSS(graph, args.k)
+    '''seed_set = set({4, 713, 9, 107, 11, 3437, 12, 15, 18, 693})
     print(seed_set)
     print(f"Lunghezza seed_set: {len(seed_set)}")
     
     influenced = cascade(loaded_graph, seed_set)
     print(influenced)
-    print(f"Lunghezza influenced: {len(influenced)}")
+    print(f"Lunghezza influenced: {len(influenced)}")'''
