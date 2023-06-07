@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import time
 import copy
 from collections import Counter
+import math
 
 #Crea i pesi degli archi
 def labeling(graph, t):
@@ -75,10 +76,10 @@ def set_degree_node(graph):
         #Sia della sorgente che della destinazione, perché siamo su un grafo orientato
         if(graph.GetIntAttrDatE(edge, "weight") == 1):
             graph.AddIntAttrDatN(src_node, graph.GetIntAttrDatN(src_node, 'degree_pos') + 1, 'degree_pos')
-            graph.AddIntAttrDatN(src_node, graph.GetIntAttrDatN(dst_node, 'degree_pos') + 1, 'degree_pos')
+            graph.AddIntAttrDatN(dst_node, graph.GetIntAttrDatN(dst_node, 'degree_pos') + 1, 'degree_pos')
         else: 
             graph.AddIntAttrDatN(src_node, graph.GetIntAttrDatN(src_node, 'degree_neg') + 1, 'degree_neg')
-            graph.AddIntAttrDatN(src_node, graph.GetIntAttrDatN(dst_node, 'degree_neg') + 1, 'degree_neg')
+            graph.AddIntAttrDatN(dst_node, graph.GetIntAttrDatN(dst_node, 'degree_neg') + 1, 'degree_neg')
 
 #Recupera i vicini positivi o negativi di un nodo
 def get_neighbors_weighed(graph, node_id, weight):
@@ -251,20 +252,24 @@ def cascade(graph, seed_set):
                 
     return influencing
 
-def nostro(graph, k):
-    seed_set = set()
-
+def create_community(graph): 
     G = snap.ConvertGraph(snap.PUNGraph, graph)
 
     # Esegui l'algoritmo di community detection
     CmtyV = snap.TCnComV()
     modularity = snap.CommunityCNM(G, CmtyV)
+    
+    return CmtyV, modularity
+
+def nostro(graph, k):
+    seed_set = set()
+
+    CmtyV, _ = create_community(graph)
 
     # Stampa le informazioni sulle community
-    print("Numero di community individuate:", len(CmtyV))
-    print("Modularità:", modularity)
+    #print("Numero di community individuate:", len(CmtyV))
 
-    # Stampa i nodi appartenenti a ciascuna community
+    # Creo la lista di community
     Cmty_list = []
     for i, Cmty in enumerate(CmtyV):
         #print("Community", i + 1, ":", )
@@ -273,53 +278,64 @@ def nostro(graph, k):
         #    print(NI, end=" ")
         #print()
 
+    #Ordino le community dalla più grande alla più piccola
     ordered_Cmty = sorted(Cmty_list, key=lambda x: x[2], reverse=True)
-    #print(ordered_Cmty)
 
-    #More communities than k
+    '''
+    print("Final") #Just printing the final Cmty list
+    for tupl_Cmty in final_cmty:
+        print("Community", tupl_Cmty[0], ":", )
+        for NI in tupl_Cmty[1]:
+            print(NI, end=" ")
+        print()
+    '''
+    
     final_cmty = []
-    if len(ordered_Cmty) > k:
-        for Cmt in ordered_Cmty:
-            final_cmty.append((Cmt[0],Cmt[1]))
-        '''
-        print("Final") #Just printing the final Cmty list
-        for tupl_Cmty in final_cmty:
-            print("Community", tupl_Cmty[0], ":", )
-            for NI in tupl_Cmty[1]:
-                print(NI, end=" ")
-            print()
-        '''
-        for tupl_Cmty in final_cmty:
-            if(len(seed_set) < k):
-                NIdV = snap.TIntV()
-                for NI in tupl_Cmty[1]:
-                    NIdV.Add(NI)
-                SubGraph = snap.GetSubGraph(graph, NIdV)
+    for Cmt in ordered_Cmty:
+        NIdV = snap.TIntV()
+        for NI in Cmt[1]:
+            NIdV.Add(NI)
+            
+        SubGraph = snap.GetSubGraph(graph, NIdV)
 
-                # Calcola la centralità di intermediazione per la community corrente
-                CentrH, _ = snap.GetBetweennessCentr(SubGraph)
+        # Calcola la centralità di intermediazione per la community corrente
+        CentrH, _ = snap.GetBetweennessCentr(SubGraph)
+        
+        final_cmty.append((Cmt[0],Cmt[1], SubGraph, CentrH)) #0: ID_Comm, 1: Nodi Comm, 2: Grafo Comm, 3: Centralità Nodi Comm
+    
+    print("FINE SUBGRAFO")    
+    while(len(seed_set) < k):
+        for tupl_Cmty in final_cmty:
+            if len(seed_set) == k:
+                break
 
-                # Stampa la centralità di intermediazione per ogni nodo nella community
-                #print("Community", tupl_Cmty[0], ":",end="")
-                #for NodeId in CentrH:
-                    #print("Nodo", NodeId, ":", CentrH[NodeId])
-                # print("Nodo_max",max_centr_node,"value:",CentrH[max_centr_node])
-                new_node = None
-                while(new_node is None):
-                    max_centr_node = max(CentrH, key=CentrH.get)
-                    deg_neg = graph.GetIntAttrDatN(max_centr_node, 'degree_neg')
-                    deg_pos = graph.GetIntAttrDatN(max_centr_node, 'degree_pos')
-                    if (deg_pos - deg_neg) >= graph.GetIntAttrDatN(max_centr_node, 't'):
-                        new_node = max_centr_node
-                    else:
-                        del CentrH[max_centr_node]
+            new_node = None
+            SubGraph = tupl_Cmty[2]
+            CentrH = tupl_Cmty[3]
+            while(new_node is None):
+                if len(CentrH) == 0:
+                    new_node = -1
+                    break
+                    
+                #max_centr_node = max(CentrH, key=CentrH.get)
+                max_centr_node = max(CentrH, key=lambda k: CentrH[k] if k not in seed_set else float('-inf'))
+                deg_neg = graph.GetIntAttrDatN(max_centr_node, 'degree_neg')
+                deg_pos = graph.GetIntAttrDatN(max_centr_node, 'degree_pos')
+                
+                #print(f"max_centr_node: {max_centr_node}, pos: {deg_pos}, neg: {deg_neg}")
+                if (deg_pos - deg_neg) >= graph.GetIntAttrDatN(max_centr_node, 't'):
+                    new_node = max_centr_node
+                else:
+                    del CentrH[max_centr_node]
+                    tupl_Cmty[3] = CentrH
+            
+            if new_node == -1:
+                continue
+            else: 
                 seed_set.add(new_node)
-
-
-    else:
-        #less communities than k, so k/n_Cmty elements of the seed_set for every Cmty
-        print("else")
-
+                print(f"Community: {tupl_Cmty[0]}, nodo trovato {new_node}")    
+            
+    return seed_set
     
 if __name__ == '__main__':
     filename = "datasets/facebook_combined.txt"
@@ -352,11 +368,11 @@ if __name__ == '__main__':
 
     #seed_set = third_algorithm(graph, args.k)
     #seed_set = TSS(graph, args.k)
-    '''seed_set = set({4, 713, 9, 107, 11, 3437, 12, 15, 18, 693})
+    #print(seed_set)
+    #print(f"Lunghezza seed_set: {len(seed_set)}")
+    
+    seed_set = nostro(graph,args.k)
     print(seed_set)
-    print(f"Lunghezza seed_set: {len(seed_set)}")
     
     influenced = cascade(loaded_graph, seed_set)
-    print(influenced)
-    print(f"Lunghezza influenced: {len(influenced)}")'''
-    nostro(graph,args.k)
+    print(f"Lunghezza influenced: {len(influenced)}")
