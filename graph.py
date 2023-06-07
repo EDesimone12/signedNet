@@ -250,6 +250,25 @@ def cascade(graph, seed_set):
                 influencing.add(node_id)
                 
     return influencing
+
+def nostro(graph, k): 
+    G = snap.ConvertGraph(snap.PUNGraph, graph)
+
+    # Esegui l'algoritmo di community detection
+    CmtyV = snap.TCnComV()
+    modularity = snap.CommunityCNM(G, CmtyV)
+
+    # Stampa le informazioni sulle community
+    print("Numero di community individuate:", len(CmtyV))
+    print("Modularità:", modularity)
+
+    # Stampa i nodi appartenenti a ciascuna community
+    for i, Cmty in enumerate(CmtyV):
+        print("Community", i + 1, ":", )
+        for NI in Cmty:
+            print(NI, end=" ")
+        print()
+    
 if __name__ == '__main__':
     filename = "datasets/facebook_combined.txt"
 
@@ -278,23 +297,6 @@ if __name__ == '__main__':
     FOut.Flush()
     FIn = snap.TFIn(file_path)
     loaded_graph = snap.TNEANet.Load(FIn)
-    
-    G = snap.ConvertGraph(snap.PUNGraph, graph)
-
-    # Esegui l'algoritmo di community detection
-    CmtyV = snap.TCnComV()
-    modularity = snap.CommunityGirvanNewman(G, CmtyV)
-
-    # Stampa le informazioni sulle community
-    print("Numero di community individuate:", len(CmtyV))
-    print("Modularità:", modularity)
-
-    # Stampa i nodi appartenenti a ciascuna community
-    for i, Cmty in enumerate(CmtyV):
-        print("Community", i + 1, ":", )
-        for NI in Cmty:
-            print(NI, end=" ")
-        print()
 
     #seed_set = third_algorithm(graph, args.k)
     #seed_set = TSS(graph, args.k)
