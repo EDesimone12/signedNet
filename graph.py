@@ -263,11 +263,34 @@ def nostro(graph, k):
     print("Modularità:", modularity)
 
     # Stampa i nodi appartenenti a ciascuna community
+    Cmty_list = []
     for i, Cmty in enumerate(CmtyV):
-        print("Community", i + 1, ":", )
-        for NI in Cmty:
-            print(NI, end=" ")
-        print()
+        #print("Community", i + 1, ":", )
+        Cmty_list.append((i,Cmty,len(Cmty)))
+        #for NI in Cmty:
+        #    print(NI, end=" ")
+        #print()
+
+    ordered_Cmty = sorted(Cmty_list, key=lambda x: x[2], reverse=True)
+    #print(ordered_Cmty)
+
+    #More communities than k
+    final_cmty = []
+    if len(ordered_Cmty) > k:
+        for Cmt in ordered_Cmty:
+            final_cmty.append((Cmt[0],Cmt[1]))
+        '''
+        print("Final") #Just printing the final Cmty list
+        for tupl_Cmty in final_cmty:
+            print("Community", tupl_Cmty[0], ":", )
+            for NI in tupl_Cmty[1]:
+                print(NI, end=" ")
+            print()
+        '''
+    else:
+        #less communities than k, so k/n_Cmty elements of the seed_set for every Cmty
+        print("else")
+
     
 if __name__ == '__main__':
     filename = "datasets/facebook_combined.txt"
@@ -307,3 +330,4 @@ if __name__ == '__main__':
     influenced = cascade(loaded_graph, seed_set)
     print(influenced)
     print(f"Lunghezza influenced: {len(influenced)}")'''
+    nostro(graph,args.k)
