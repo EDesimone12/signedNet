@@ -290,29 +290,30 @@ def nostro(graph, k):
             print()
         '''
         for tupl_Cmty in final_cmty:
-            NIdV = snap.TIntV()
-            for NI in tupl_Cmty[1]:
-                NIdV.Add(NI)
-            SubGraph = snap.GetSubGraph(graph, NIdV)
+            if(len(seed_set) < k):
+                NIdV = snap.TIntV()
+                for NI in tupl_Cmty[1]:
+                    NIdV.Add(NI)
+                SubGraph = snap.GetSubGraph(graph, NIdV)
 
-            # Calcola la centralità di intermediazione per la community corrente
-            CentrH, _ = snap.GetBetweennessCentr(SubGraph)
+                # Calcola la centralità di intermediazione per la community corrente
+                CentrH, _ = snap.GetBetweennessCentr(SubGraph)
 
-            # Stampa la centralità di intermediazione per ogni nodo nella community
-            #print("Community", tupl_Cmty[0], ":",end="")
-            #for NodeId in CentrH:
-                #print("Nodo", NodeId, ":", CentrH[NodeId])
-            # print("Nodo_max",max_centr_node,"value:",CentrH[max_centr_node])
-            new_node = None
-            while(new_node is None):
-                max_centr_node = max(CentrH, key=CentrH.get)
-                deg_neg = graph.GetIntAttrDatN(max_centr_node, 'degree_neg')
-                deg_pos = graph.GetIntAttrDatN(max_centr_node, 'degree_pos')
-                if (deg_pos - deg_neg) >= graph.GetIntAttrDatN(max_centr_node, 't'):
-                    new_node = max_centr_node
-                else:
-                    del CentrH[max_centr_node]
-            seed_set.add(new_node)
+                # Stampa la centralità di intermediazione per ogni nodo nella community
+                #print("Community", tupl_Cmty[0], ":",end="")
+                #for NodeId in CentrH:
+                    #print("Nodo", NodeId, ":", CentrH[NodeId])
+                # print("Nodo_max",max_centr_node,"value:",CentrH[max_centr_node])
+                new_node = None
+                while(new_node is None):
+                    max_centr_node = max(CentrH, key=CentrH.get)
+                    deg_neg = graph.GetIntAttrDatN(max_centr_node, 'degree_neg')
+                    deg_pos = graph.GetIntAttrDatN(max_centr_node, 'degree_pos')
+                    if (deg_pos - deg_neg) >= graph.GetIntAttrDatN(max_centr_node, 't'):
+                        new_node = max_centr_node
+                    else:
+                        del CentrH[max_centr_node]
+                seed_set.add(new_node)
 
 
     else:
