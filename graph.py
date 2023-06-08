@@ -252,16 +252,20 @@ def cascade(graph, seed_set):
                 
     return influencing
 
-def create_community(graph): 
+def create_community(graph):
+
     G = snap.ConvertGraph(snap.PUNGraph, graph)
 
     # Esegui l'algoritmo di community detection
     CmtyV = snap.TCnComV()
-    modularity = snap.CommunityCNM(G, CmtyV)
-    
+
+    modularity = snap.CommunityCNM(G,CmtyV)
+    print("#Communities:", len(CmtyV))
+
     return CmtyV, modularity
 
-def nostro(graph, k):
+def communities_seed_minimization(graph, k):
+
     seed_set = set()
 
     CmtyV, _ = create_community(graph)
@@ -321,13 +325,12 @@ def nostro(graph, k):
                 max_centr_node = max(CentrH, key=lambda k: CentrH[k] if k not in seed_set else float('-inf'))
                 deg_neg = graph.GetIntAttrDatN(max_centr_node, 'degree_neg')
                 deg_pos = graph.GetIntAttrDatN(max_centr_node, 'degree_pos')
-                
+
                 #print(f"max_centr_node: {max_centr_node}, pos: {deg_pos}, neg: {deg_neg}")
                 if (deg_pos - deg_neg) >= graph.GetIntAttrDatN(max_centr_node, 't'):
                     new_node = max_centr_node
                 else:
                     del CentrH[max_centr_node]
-                    tupl_Cmty[3] = CentrH
             
             if new_node == -1:
                 continue
@@ -336,9 +339,28 @@ def nostro(graph, k):
                 print(f"Community: {tupl_Cmty[0]}, nodo trovato {new_node}")    
             
     return seed_set
-    
+
+def printGr(filename):
+    G = nx.Graph()
+
+    with open(filename, 'r') as file:
+        for line in file:
+            source, target = line.strip().split()
+            G.add_edge(source, target)
+
+    # Creazione del grafico
+    pos = nx.spring_layout(G)  # Layout del grafico
+    nx.draw(G, pos, with_labels=False, node_color='blue', node_size=30)
+
+    plt.show()
+
+def save_results_to_file(results, file_path):
+    with open(file_path, "a") as file:
+        file.write(str(results) + "\n") # k t influenced
+
 if __name__ == '__main__':
     filename = "datasets/facebook_combined.txt"
+    #printGr(filename)
 
     parser = argparse.ArgumentParser()
 
@@ -346,6 +368,8 @@ if __name__ == '__main__':
                         default='', type=int, help='k size of seed-set')
     parser.add_argument('-t', dest='t', action='store',
                         default='', type=int, help='treshold of nodes')
+    parser.add_argument('-a', dest='a', action='store',
+                        default='', type=str, help='name of the algorithm')
     args = parser.parse_args()
 
 
@@ -354,10 +378,9 @@ if __name__ == '__main__':
 
     #Labeling
     labeling(graph, args.t)
-    
     #Setto i gradi positivi e negativi su ogni nodo
     set_degree_node(graph)
-    
+
     #Salvo il grafo solo con label e attributi, in modo da passare al cascade un grafo senza manipolazioni
     file_path = "graph.bin"
     FOut = snap.TFOut(file_path)
@@ -371,8 +394,35 @@ if __name__ == '__main__':
     #print(seed_set)
     #print(f"Lunghezza seed_set: {len(seed_set)}")
     
-    seed_set = nostro(graph,args.k)
-    print(seed_set)
-    
-    influenced = cascade(loaded_graph, seed_set)
-    print(f"Lunghezza influenced: {len(influenced)}")
+
+
+    if args.a == "tss":
+        seed_set = TSS(graph, args.k)
+        #print(seed_set)
+
+        influenced = cascade(loaded_graph, seed_set)
+        print(f"Lunghezza influenced: {len(influenced) - len(seed_set)}")
+
+        results = f"{args.k} {args.t} {len(influenced) - len(seed_set)}"
+
+        save_results_to_file(results, f"tss/TSS_{args.k}_{args.t}.txt")
+    elif args.a == "third":
+        seed_set = third_algorithm(graph, args.k)
+        #print(seed_set)
+
+        influenced = cascade(loaded_graph, seed_set)
+        print(f"Lunghezza influenced: {len(influenced) - len(seed_set)}")
+
+        results = f"{args.k} {args.t} {len(influenced) - len(seed_set)}"
+
+        save_results_to_file(results, f"third/Third_{args.k}_{args.t}.txt")
+    elif args.a == "csm":
+        seed_set = communities_seed_minimization(graph, args.k)
+        #print(seed_set)
+
+        influenced = cascade(loaded_graph, seed_set)
+        print(f"Lunghezza influenced: {len(influenced) - len(seed_set)}")
+
+        results = f"{args.k} {args.t} {len(influenced) - len(seed_set)}"
+
+        save_results_to_file(results, f"csm/CSM_{args.k}_{args.t}.txt")
