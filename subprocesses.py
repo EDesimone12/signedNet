@@ -1,6 +1,7 @@
 import subprocess
 import argparse
 
+algorithms = ['tss', 'csm']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -13,9 +14,10 @@ if __name__ == '__main__':
 
     num_executions = 10
 
-    for k in [5, 10, 20, 30, 40, 50]:
-        for t in [2, 3]:
-            command = f"python graph.py -k {k} -t {t} -a {args.a}"
+    for algorithm in algorithms:
+        for k in [70, 90, 110]:
+            for t in [2, 3]:
+                command = f"python3.7 graph.py -k {k} -t {t} -a {algorithm}"
 
-            for i in range(num_executions):
-                subprocess.call(command, shell=True)
+                for i in range(num_executions):
+                    subprocess.call(command, shell=True)
